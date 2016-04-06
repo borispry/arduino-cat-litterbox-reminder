@@ -8,11 +8,9 @@ const long firstCheck = 2000;
 const long secondCheck = 4000;
 const long finalCheck = 5000;
 
-unsigned long startTime = 0;
-unsigned long previousMillisYel=0;
-unsigned long previousMillisRed=0;
-bool isYellowOn = false;
-bool isRedOn = false;
+enum State { green, yellow, red, critical };
+State state = green;
+unsigned long startTime=0;
 
 void setup() {
   pinMode(greenLed, OUTPUT);
@@ -23,48 +21,48 @@ void setup() {
 
 void loop() {
   checkButton();
-  checkGreenLed();
-  checkYellowLed();
-  checkRedLed();
+  determineState();
+  switchLed();
 }
 
 void checkButton() {
-  if( digitalRead(buttonPin) == true  ) {   // button is pressed
-        resetLights();
-        delay(100); // debounce
+  if(isButtonPressed()) {
+    resetLights();
+    delay(100); // debounce
   }
 }
 
-void checkGreenLed() {
-  if (needToTurnOnGreen()) {
-      greenOn();
+bool isButtonPressed() {
+  return digitalRead(buttonPin) == true;
+}
+
+void determineState() {
+  unsigned long timePassed = calcPassedTime(startTime);
+  if(timePassed >= finalCheck)
+  {
+    state = critical;
+  }
+  else if(timePassed >= secondCheck)
+  {
+    state = red;
+  }
+  else if(timePassed >= firstCheck)
+  {
+    state = yellow;
+  }
+  else 
+  {
+    state = green;
   }
 }
 
-bool needToTurnOnGreen() {
-  return (!isYellowOn && !isRedOn);
-}
-
-void checkYellowLed() {
-  if (needToTurnOnYellow()) {
-      yellowOn();
+void switchLed() {
+  switch(state)
+  {
+    case green : redOff(); yellowOff(); greenOn(); break;
+    case yellow : redOff(); yellowOn(); greenOff(); break;
+    case red : redOn(); yellowOff(); greenOff(); break;
   }
-}
-
-bool needToTurnOnYellow() {
-  unsigned long timePassedYel = calcPassedTime(previousMillisYel);
-  return (!isYellowOn && !isRedOn && timePassedYel >= firstCheck);
-}
-
-void checkRedLed() {
-  if (needToTurnOnRed()) {
-      redOn();
-  }
-}
-
-bool needToTurnOnRed() {
-  unsigned long timePassedRed = calcPassedTime(previousMillisRed);
-  return (!isRedOn && timePassedRed >= secondCheck);
 }
 
 void greenOn() {
@@ -77,29 +75,18 @@ void greenOff() {
 
 void yellowOn() {
   digitalWrite(yelLed, true);
-  previousMillisYel = millis();
-  isYellowOn = true; 
-  greenOff();
 }
 
 void yellowOff() {
   digitalWrite(yelLed, false);
-  previousMillisYel = millis();
-  isYellowOn = false;
 }
 
 void redOn() {
   digitalWrite(redLed, true);
-  previousMillisRed = millis();
-  isRedOn = true;
-  yellowOff(); 
-  greenOff();
 }
 
 void redOff() {
    digitalWrite(redLed, false);
-  previousMillisRed = millis();
-  isRedOn = false; 
 }
 
 unsigned long calcPassedTime(unsigned long previous) {
@@ -107,6 +94,5 @@ unsigned long calcPassedTime(unsigned long previous) {
 }
 
 void resetLights() {
-  yellowOff();
-  redOff();
+  startTime = millis();
 }
